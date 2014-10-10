@@ -15,12 +15,9 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedFile;
 import io.netty.util.CharsetUtil;
 import io.netty.util.internal.SystemPropertyUtil;
+import org.apache.tika.Tika;
 
-import javax.activation.MimetypesFileTypeMap;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.RandomAccessFile;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.net.URLDecoder;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -35,11 +32,9 @@ import static io.netty.handler.codec.http.HttpMethod.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.*;
 
-/**
- * Handles handshakes and messages
- */
 public class ServerHandler extends SimpleChannelInboundHandler<Object> {
 
+    private final static Tika tika = new Tika();
     private static final String WEBSOCKET_PATH = "/ws";
     private WebSocketServerHandshaker handshaker;
     public static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
@@ -73,9 +68,8 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
             return;
         }
 
-        // check if it's a websocket request, otherwise handle as file request
-        HttpHeaders headers = req.headers();
-        if (headers.get("Connection").equals("Upgrade") && headers.get("Upgrade").equals("websocket")) {
+        // route handler
+        if ("/ws".equals(req.uri())) {
             WebSocketServerHandshakerFactory wsFactory = new WebSocketServerHandshakerFactory(
                     "ws://" + req.headers().get(HOST) + WEBSOCKET_PATH, null, false);
             handshaker = wsFactory.newHandshaker(req);
@@ -87,51 +81,31 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         } else {
             handleFileRequest(ctx, req);
         }
-/*
-            if ("/".equals(req.uri())) {
-                ByteBuf content = IndexPage.getContent();
-                FullHttpResponse res = new DefaultFullHttpResponse(HTTP_1_1, OK, content);
-
-                res.headers().set(CONTENT_TYPE, "text/html; charset=UTF-8");
-                HttpHeaders.setContentLength(res, content.readableBytes());
-
-                sendHttpResponse(ctx, req, res);
-                return;
-            }
-            if ("/favicon.ico".equals(req.uri())) {
-                FullHttpResponse res = new DefaultFullHttpResponse(HTTP_1_1, NOT_FOUND);
-                sendHttpResponse(ctx, req, res);
-                return;
-            }
-*/
     }
 
     private void handleFileRequest(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
-        final String uri = request.uri();
-        final String path = sanitizeUri(uri);
+        String uri = request.uri();
+        String path = sanitizeUri(uri);
         if (path == null) {
             sendError(ctx, FORBIDDEN);
             return;
         }
 
         File file = new File(path);
+        if (file.isDirectory()) {
+            if (uri.endsWith("/")) {
+                file = new File(path + "index.html");
+            } else {
+                sendError(ctx, FORBIDDEN);
+            }
+        }
+
         if (file.isHidden() || !file.exists()) {
             sendError(ctx, NOT_FOUND);
             return;
         }
 
-/*
-        if (file.isDirectory()) {
-            if (uri.endsWith("/")) {
-                sendListing(ctx, file);
-            } else {
-                sendRedirect(ctx, uri + '/');
-            }
-            return;
-        }
-*/
-
-        if (!file.isFile() || file.isDirectory()) {
+        if (!file.isFile()) {
             sendError(ctx, FORBIDDEN);
             return;
         }
@@ -163,8 +137,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
 
         HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
         HttpHeaders.setContentLength(response, fileLength);
-        setContentTypeHeader(response, file);
-        setDateAndCacheHeaders(response, file);
+        response.headers().set(CONTENT_TYPE, tika.detect(file.getPath()));
         if (HttpHeaders.isKeepAlive(request)) {
             response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
         }
@@ -207,7 +180,6 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
             // Close the connection when the whole content is written out.
             lastContentFuture.addListener(ChannelFutureListener.CLOSE);
         }
-
     }
 
     private static final Pattern INSECURE_URI = Pattern.compile(".*[<>&\"].*");
@@ -257,12 +229,6 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
     }
 
-    /**
-     * Sets the Date header for the HTTP response
-     *
-     * @param response
-     *            HTTP response
-     */
     private static void setDateHeader(FullHttpResponse response) {
         SimpleDateFormat dateFormatter = new SimpleDateFormat(HTTP_DATE_FORMAT, Locale.US);
         dateFormatter.setTimeZone(TimeZone.getTimeZone(HTTP_DATE_GMT_TIMEZONE));
@@ -271,14 +237,6 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         response.headers().set(DATE, dateFormatter.format(time.getTime()));
     }
 
-    /**
-     * Sets the Date and Cache headers for the HTTP Response
-     *
-     * @param response
-     *            HTTP response
-     * @param fileToCache
-     *            file to extract content type
-     */
     private static void setDateAndCacheHeaders(HttpResponse response, File fileToCache) {
         SimpleDateFormat dateFormatter = new SimpleDateFormat(HTTP_DATE_FORMAT, Locale.US);
         dateFormatter.setTimeZone(TimeZone.getTimeZone(HTTP_DATE_GMT_TIMEZONE));
@@ -293,19 +251,6 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         response.headers().set(CACHE_CONTROL, "private, max-age=" + HTTP_CACHE_SECONDS);
         response.headers().set(
                 LAST_MODIFIED, dateFormatter.format(new Date(fileToCache.lastModified())));
-    }
-
-    /**
-     * Sets the content type header for the HTTP Response
-     *
-     * @param response
-     *            HTTP response
-     * @param file
-     *            file to extract content type
-     */
-    private static void setContentTypeHeader(HttpResponse response, File file) {
-        MimetypesFileTypeMap mimeTypesMap = new MimetypesFileTypeMap();
-        response.headers().set(CONTENT_TYPE, mimeTypesMap.getContentType(file.getPath()));
     }
 
     private void handleWebSocketFrame(ChannelHandlerContext ctx, WebSocketFrame frame) {

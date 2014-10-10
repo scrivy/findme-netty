@@ -1,0 +1,21 @@
+{
+  "name": "findme",
+  "version": "0.0.0",
+  "authors": [
+    "Daniel <dscrivano@insikt.com>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "public/bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "semantic-ui": "~0.19.3",
+    "jquery": "~2.1.1",
+    "leaflet": "~0.7.3"
+  }
+}
