@@ -13,7 +13,7 @@ map.locate({setView: true, maxZoom: 18});
 
 var mymarker = L.marker([0, 0], {
   icon: L.icon({
-    iconUrl: 'assets/images/mymarker.png',
+    iconUrl: 'images/mymarker.png',
     iconSize: [25, 41],
     iconAnchor: [12, 40]
   }),
