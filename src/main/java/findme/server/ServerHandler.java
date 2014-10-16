@@ -1,5 +1,7 @@
 package findme.server;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
@@ -27,6 +29,8 @@ import java.util.Locale;
 import java.util.TimeZone;
 import java.util.regex.Pattern;
 
+import findme.server.LocationsHandler;
+
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpMethod.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
@@ -34,6 +38,7 @@ import static io.netty.handler.codec.http.HttpVersion.*;
 
 public class ServerHandler extends SimpleChannelInboundHandler<Object> {
 
+    private static final ObjectMapper mapper = new ObjectMapper();
     private final static Tika tika = new Tika();
     private static final String WEBSOCKET_PATH = "/ws";
     private WebSocketServerHandshaker handshaker;
@@ -253,7 +258,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
                 LAST_MODIFIED, dateFormatter.format(new Date(fileToCache.lastModified())));
     }
 
-    private void handleWebSocketFrame(ChannelHandlerContext ctx, WebSocketFrame frame) {
+    private void handleWebSocketFrame(ChannelHandlerContext ctx, WebSocketFrame frame) throws IOException {
 
         // Check for closing frame
         if (frame instanceof CloseWebSocketFrame) {
@@ -268,6 +273,12 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
             throw new UnsupportedOperationException(String.format("%s frame types not supported", frame.getClass()
                     .getName()));
         }
+
+
+
+        JsonNode event = mapper.readTree(((TextWebSocketFrame) frame).text());
+
+
 
         // Send the uppercase string back.
         String request = ((TextWebSocketFrame) frame).text();

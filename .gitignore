@@ -2,3 +2,6 @@
 .idea
 build
 .DS_Store
+findme-netty.iml
+findme-netty.ipr
+findme-netty.iws
