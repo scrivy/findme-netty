@@ -22,14 +22,9 @@ import org.apache.tika.Tika;
 import java.io.*;
 import java.net.URLDecoder;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.Locale;
-import java.util.TimeZone;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
-
-import findme.server.LocationsHandler;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpMethod.*;
@@ -37,10 +32,10 @@ import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.*;
 
 public class ServerHandler extends SimpleChannelInboundHandler<Object> {
-
+    private static final Map<String, Location> sockets = new ConcurrentHashMap<>();
     private static final ObjectMapper mapper = new ObjectMapper();
     private final static Tika tika = new Tika();
-    private static final String WEBSOCKET_PATH = "/ws";
+
     private WebSocketServerHandshaker handshaker;
     public static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
     public static final String HTTP_DATE_GMT_TIMEZONE = "GMT";
@@ -76,12 +71,13 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         // route handler
         if ("/ws".equals(req.uri())) {
             WebSocketServerHandshakerFactory wsFactory = new WebSocketServerHandshakerFactory(
-                    "ws://" + req.headers().get(HOST) + WEBSOCKET_PATH, null, false);
+                    "ws://" + req.headers().get(HOST) + "/ws", null, false);
             handshaker = wsFactory.newHandshaker(req);
             if (handshaker == null) {
                 WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel());
             } else {
                 handshaker.handshake(ctx.channel(), req);
+                sockets.put(ctx.channel().id().asShortText(), new Location(ctx));
             }
         } else {
             handleFileRequest(ctx, req);
@@ -274,11 +270,22 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
                     .getName()));
         }
 
-
-
         JsonNode event = mapper.readTree(((TextWebSocketFrame) frame).text());
+        System.out.println(event);
 
+        String action = event.get("action").toString();
 
+        if (action.equals("\"updateLocation\"")) {
+            JsonNode data = event.get("data");
+            JsonNode latLng = data.get("latlng");
+
+            double lat = latLng.get(0).asDouble();
+            double lng = latLng.get(1).asDouble();
+            int accuracy = data.get("accuracy").asInt();
+
+            updateLocation(uuid, dataToJson(uuid, lat, lng, accuracy));
+            sockets.get(uuid).update(lat, lng, accuracy);
+        }
 
         // Send the uppercase string back.
         String request = ((TextWebSocketFrame) frame).text();
