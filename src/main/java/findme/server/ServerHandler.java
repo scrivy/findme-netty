@@ -1,7 +1,5 @@
 package findme.server;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
@@ -32,7 +30,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.*;
 
 public class ServerHandler extends SimpleChannelInboundHandler<Object> {
-    private static final ObjectMapper mapper = new ObjectMapper();
+
     private final static Tika tika = new Tika();
 
     private WebSocketServerHandshaker handshaker;
@@ -49,10 +47,12 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         }
     }
 
+    /*
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) {
         ctx.flush();
     }
+    */
 
     private void handleHttpRequest(ChannelHandlerContext ctx, FullHttpRequest req) throws Exception {
         // Handle a bad request.
@@ -253,7 +253,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
                 LAST_MODIFIED, dateFormatter.format(new Date(fileToCache.lastModified())));
     }
 
-    private void handleWebSocketFrame(ChannelHandlerContext ctx, WebSocketFrame frame) throws IOException {
+    private void handleWebSocketFrame(ChannelHandlerContext ctx, WebSocketFrame frame) {
 
         // Check for closing frame
         if (frame instanceof CloseWebSocketFrame) {
@@ -269,8 +269,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
                     .getName()));
         }
 
-        JsonNode event = mapper.readTree(((TextWebSocketFrame) frame).text());
-        handleJsonEvent(ctx, event);
+        handleJsonEvent(ctx.channel().id().asShortText(), ((TextWebSocketFrame) frame).text());
 
         // Send the uppercase string back.
 //        String request = ((TextWebSocketFrame) frame).text();
