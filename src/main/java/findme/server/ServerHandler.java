@@ -23,16 +23,15 @@ import java.io.*;
 import java.net.URLDecoder;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
+import static findme.server.LocationsHandler.*;
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpMethod.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.*;
 
 public class ServerHandler extends SimpleChannelInboundHandler<Object> {
-    private static final Map<String, Location> sockets = new ConcurrentHashMap<>();
     private static final ObjectMapper mapper = new ObjectMapper();
     private final static Tika tika = new Tika();
 
@@ -77,7 +76,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
                 WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel());
             } else {
                 handshaker.handshake(ctx.channel(), req);
-                sockets.put(ctx.channel().id().asShortText(), new Location(ctx));
+                addLocation(ctx);
             }
         } else {
             handleFileRequest(ctx, req);
@@ -271,26 +270,12 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         }
 
         JsonNode event = mapper.readTree(((TextWebSocketFrame) frame).text());
-        System.out.println(event);
-
-        String action = event.get("action").toString();
-
-        if (action.equals("\"updateLocation\"")) {
-            JsonNode data = event.get("data");
-            JsonNode latLng = data.get("latlng");
-
-            double lat = latLng.get(0).asDouble();
-            double lng = latLng.get(1).asDouble();
-            int accuracy = data.get("accuracy").asInt();
-
-            updateLocation(uuid, dataToJson(uuid, lat, lng, accuracy));
-            sockets.get(uuid).update(lat, lng, accuracy);
-        }
+        handleJsonEvent(ctx, event);
 
         // Send the uppercase string back.
-        String request = ((TextWebSocketFrame) frame).text();
-        System.err.printf("%s received %s%n", ctx.channel(), request);
-        ctx.channel().write(new TextWebSocketFrame(request.toUpperCase()));
+//        String request = ((TextWebSocketFrame) frame).text();
+//        System.err.printf("%s received %s%n", ctx.channel(), request);
+//        ctx.channel().write(new TextWebSocketFrame(request.toUpperCase()));
     }
 
     private static void sendHttpResponse(
