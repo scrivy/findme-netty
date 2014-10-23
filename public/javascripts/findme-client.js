@@ -48,7 +48,14 @@ setInterval(fadeoutoldmarkers, 15000, everyone);
 var ws = new WebSocket('ws://' + window.location.host + '/ws');
 
 ws.onmessage = function(event) {
-    var message = JSON.parse(event.data);
+    try {
+        var message = JSON.parse(event.data);
+    } catch(e) {
+        console.error(e.message);
+        console.error('raw message: ');
+        console.error(event);
+        return;
+    }
     console.log(message);
 
   switch(message.action) {

@@ -1,5 +1,6 @@
 package findme.server;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -44,9 +45,19 @@ public class LocationsHandler {
     }
 
     private static void broadcastUpdatedLocation(String originator, ObjectNode json) {
+        // build json to send
+        ObjectNode jsonToSend = mapper.createObjectNode();
+        jsonToSend.put("action", "updateLocation");
+        jsonToSend.set("data", json);
+
         for (String key : sockets.keySet()) {
             if (!key.equals(originator)) {
-                sockets.get(key).write(json);
+                try {
+                    sockets.get(key).write(mapper.writeValueAsString(jsonToSend));
+                } catch (JsonProcessingException e) {
+                    e.printStackTrace();
+                    return;
+                }
             }
         }
     }

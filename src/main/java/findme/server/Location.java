@@ -1,6 +1,5 @@
 package findme.server;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 
@@ -20,7 +19,8 @@ public class Location {
         this.accuracy = accuracy;
     }
 
-    public void write(JsonNode json) {
-        ctx.channel().writeAndFlush(new TextWebSocketFrame(json.asText()));
+    public void write(String json) {
+        System.out.println("JSON output: " + json);
+        ctx.channel().writeAndFlush(new TextWebSocketFrame(json));
     }
 }
