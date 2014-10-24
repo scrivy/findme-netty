@@ -1,7 +1,10 @@
 package findme.server;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+
+import static findme.server.LocationsHandler.dataToJson;
 
 public class Location {
     private final ChannelHandlerContext ctx;
@@ -19,8 +22,11 @@ public class Location {
         this.accuracy = accuracy;
     }
 
-    public void write(String json) {
-        System.out.println("JSON output: " + json);
-        ctx.channel().writeAndFlush(new TextWebSocketFrame(json));
+    public ObjectNode getLatLng() {
+        return dataToJson(ctx.channel().id().asShortText(), lat, lng, accuracy);
+    }
+
+    public void write(String frameText) {
+        ctx.channel().writeAndFlush(new TextWebSocketFrame(frameText));
     }
 }

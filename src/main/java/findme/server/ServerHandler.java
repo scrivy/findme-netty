@@ -47,12 +47,10 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         }
     }
 
-    /*
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) {
         ctx.flush();
     }
-    */
 
     private void handleHttpRequest(ChannelHandlerContext ctx, FullHttpRequest req) throws Exception {
         // Handle a bad request.
@@ -156,6 +154,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
                             ctx.newProgressivePromise());
         }
 
+        /*
         sendFileFuture.addListener(new ChannelProgressiveFutureListener() {
             @Override
             public void operationProgressed(ChannelProgressiveFuture future, long progress, long total) {
@@ -171,6 +170,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
                 System.err.println(future.channel() + " Transfer complete.");
             }
         });
+        */
 
         // Write the end marker
         ChannelFuture lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
@@ -257,6 +257,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
 
         // Check for closing frame
         if (frame instanceof CloseWebSocketFrame) {
+            removeLocation(ctx.channel().id().asShortText());
             handshaker.close(ctx.channel(), (CloseWebSocketFrame) frame.retain());
             return;
         }
