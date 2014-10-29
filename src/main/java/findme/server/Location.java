@@ -2,12 +2,14 @@ package findme.server;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 
 import static findme.server.LocationsHandler.dataToJson;
 
 public class Location {
     private final ChannelHandlerContext ctx;
+    private boolean ackPing = true;
     private double lat;
     private double lng;
     private int accuracy;
@@ -28,5 +30,17 @@ public class Location {
 
     public void write(String frameText) {
         ctx.channel().writeAndFlush(new TextWebSocketFrame(frameText));
+    }
+
+    public void sendPing() {
+        ctx.channel().writeAndFlush(new PingWebSocketFrame());
+    }
+
+    public boolean getAckPing() {
+        return ackPing;
+    }
+
+    public void setAckPing(boolean val) {
+        ackPing = val;
     }
 }

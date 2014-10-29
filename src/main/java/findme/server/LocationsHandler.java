@@ -10,11 +10,12 @@ import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 
 public class LocationsHandler {
     private static final Map<String, Location> sockets = new ConcurrentHashMap<>();
     private static final ObjectMapper mapper = new ObjectMapper();
+    private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     public static void addLocation(ChannelHandlerContext ctx) {
         // build the allLocations json response
@@ -101,5 +102,33 @@ public class LocationsHandler {
         data.put("accuracy", accuracy);
 
         return data;
+    }
+
+    public static void touchLocation(String originator) {
+        sockets.get(originator).setAckPing(true);
+    }
+
+    public static void pingAndCleanUpWebSockets() {
+        final Runnable pinger = new Runnable() {
+            @Override
+            public void run() {
+                for (String key : sockets.keySet()) {
+                    Location location = sockets.get(key);
+                    if (!location.getAckPing()) {
+                        System.out.println("Stagnant Location");
+                        removeLocation(key);
+                    } else {
+                        location.setAckPing(false);
+                        location.sendPing();
+                    }
+                }
+            }
+        };
+
+    //    final ScheduledFuture<?> pingHandle =
+                scheduler.scheduleAtFixedRate(pinger, 10, 60, TimeUnit.SECONDS);
+    //    scheduler.schedule(new Runnable() {
+    //        public void run() { pingHandle.cancel(true); }
+    //    }, 60 * 60, TimeUnit.SECONDS);
     }
 }

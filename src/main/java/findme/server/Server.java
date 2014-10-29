@@ -9,6 +9,8 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 
+import static findme.server.LocationsHandler.pingAndCleanUpWebSockets;
+
 public final class Server {
 
     public static void main(String[] args) throws Exception {
@@ -24,6 +26,8 @@ public final class Server {
                     .childHandler(new ServerInitializer());
 
             Channel ch = b.bind(9000).sync().channel();
+
+            pingAndCleanUpWebSockets();
 
             System.err.println("Open your web browser and navigate to ://127.0.0.1:9000/");
 

@@ -265,6 +265,10 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
             ctx.channel().write(new PongWebSocketFrame(frame.content().retain()));
             return;
         }
+        if (frame instanceof PongWebSocketFrame) {
+            touchLocation(ctx.channel().id().asShortText());
+            return;
+        }
         if (!(frame instanceof TextWebSocketFrame)) {
             throw new UnsupportedOperationException(String.format("%s frame types not supported", frame.getClass()
                     .getName()));
