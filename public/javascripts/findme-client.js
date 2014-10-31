@@ -25,7 +25,7 @@ var mymarker = L.marker([0, 0], {
 
 var everyone = {};
 
-function fadeoutoldmarkers(everyone) {
+function fadeOutOldMarkers(everyone) {
   var ids = Object.keys(everyone);
 
   ids.forEach(function(id) {
@@ -43,7 +43,7 @@ function fadeoutoldmarkers(everyone) {
   })
 }
 
-setInterval(fadeoutoldmarkers, 15000, everyone);
+setInterval(fadeOutOldMarkers, 15000, everyone);
 
 var ws = new WebSocket('ws://' + window.location.host + '/ws');
 
