@@ -125,10 +125,6 @@ public class LocationsHandler {
             }
         };
 
-    //    final ScheduledFuture<?> pingHandle =
-                scheduler.scheduleAtFixedRate(pinger, 10, 60, TimeUnit.SECONDS);
-    //    scheduler.schedule(new Runnable() {
-    //        public void run() { pingHandle.cancel(true); }
-    //    }, 60 * 60, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(pinger, 10, 60, TimeUnit.SECONDS);
     }
 }

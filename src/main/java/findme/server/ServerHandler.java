@@ -144,33 +144,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         ctx.write(response);
 
         // Write the content.
-        ChannelFuture sendFileFuture;
-        if (ctx.pipeline().get(SslHandler.class) == null) {
-            sendFileFuture =
-                    ctx.write(new DefaultFileRegion(raf.getChannel(), 0, fileLength), ctx.newProgressivePromise());
-        } else {
-            sendFileFuture =
-                    ctx.write(new HttpChunkedInput(new ChunkedFile(raf, 0, fileLength, 8192)),
-                            ctx.newProgressivePromise());
-        }
-
-        /*
-        sendFileFuture.addListener(new ChannelProgressiveFutureListener() {
-            @Override
-            public void operationProgressed(ChannelProgressiveFuture future, long progress, long total) {
-                if (total < 0) { // total unknown
-                    System.err.println(future.channel() + " Transfer progress: " + progress);
-                } else {
-                    System.err.println(future.channel() + " Transfer progress: " + progress + " / " + total);
-                }
-            }
-
-            @Override
-            public void operationComplete(ChannelProgressiveFuture future) {
-                System.err.println(future.channel() + " Transfer complete.");
-            }
-        });
-        */
+        ctx.write(new DefaultFileRegion(raf.getChannel(), 0, fileLength), ctx.newProgressivePromise());
 
         // Write the end marker
         ChannelFuture lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
@@ -275,11 +249,6 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         }
 
         handleJsonEvent(ctx.channel().id().asShortText(), ((TextWebSocketFrame) frame).text());
-
-        // Send the uppercase string back.
-//        String request = ((TextWebSocketFrame) frame).text();
-//        System.err.printf("%s received %s%n", ctx.channel(), request);
-//        ctx.channel().write(new TextWebSocketFrame(request.toUpperCase()));
     }
 
     private static void sendHttpResponse(
