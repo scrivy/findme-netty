@@ -11,8 +11,6 @@ import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
-import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.stream.ChunkedFile;
 import io.netty.util.CharsetUtil;
 import io.netty.util.internal.SystemPropertyUtil;
 import org.apache.tika.Tika;
@@ -21,6 +19,7 @@ import java.io.*;
 import java.net.URLDecoder;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static findme.server.LocationsHandler.*;
@@ -81,9 +80,13 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         }
     }
 
+    private static final Pattern tilePattern = Pattern.compile("\\A/tiles/(\\d+)/(\\d+)/(\\d+).png\\z");
     private void handleFileRequest(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
         String uri = request.uri();
         String path = sanitizeUri(uri);
+
+        System.out.println(uri);
+
         if (path == null) {
             sendError(ctx, FORBIDDEN);
             return;
@@ -98,9 +101,18 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
             }
         }
 
+        // check if file exists and if it's a tile request, fetch it
         if (file.isHidden() || !file.exists()) {
-            sendError(ctx, NOT_FOUND);
-            return;
+            Matcher m = tilePattern.matcher(uri);
+            if (m.find()) {
+                // LEFT OFF HERE
+
+                // download the tile and save to fs
+                System.out.println("downloading tile");
+            } else {
+                sendError(ctx, NOT_FOUND);
+                return;
+            }
         }
 
         if (!file.isFile()) {
