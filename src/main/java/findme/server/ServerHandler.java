@@ -16,7 +16,10 @@ import io.netty.util.internal.SystemPropertyUtil;
 import org.apache.tika.Tika;
 
 import java.io.*;
+import java.net.URL;
 import java.net.URLDecoder;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -102,9 +105,18 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         }
 
         // check if file exists and if it's a tile request, fetch it
-        if (file.isHidden() || !file.exists()) {
+        if (!file.exists()) {
             Matcher m = tilePattern.matcher(uri);
             if (m.find()) {
+                File zxDir = new File("public/tiles/" + m.group(1) + "/" + m.group(2));
+                if (!zxDir.exists()) {
+                    zxDir.mkdirs();
+                }
+                URL tileUrl = new URL("http://1.tile.thunderforest.com/outdoors/"+ m.group(1) + "/" + m.group(2) + "/" + m.group(3) + ".png");
+                ReadableByteChannel rbc = Channels.newChannel(tileUrl.openStream());
+                FileOutputStream fos = new FileOutputStream("public/tiles/" + m.group(1) + "/" + m.group(2) + "/" + m.group(3) + ".png");
+                fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+
                 // LEFT OFF HERE
 
                 // download the tile and save to fs
@@ -113,6 +125,11 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
                 sendError(ctx, NOT_FOUND);
                 return;
             }
+        }
+
+        if (file.isHidden()) {
+            sendError(ctx, NOT_FOUND);
+            return;
         }
 
         if (!file.isFile()) {
