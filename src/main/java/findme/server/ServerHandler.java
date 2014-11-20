@@ -99,6 +99,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
                 file = new File(path + "index.html");
             } else {
                 sendError(ctx, FORBIDDEN);
+                return;
             }
         }
 
