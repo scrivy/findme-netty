@@ -37,13 +37,14 @@ function fadeOutOldMarkers(everyone) {
       } else {
         map.removeLayer(person.circle);
         map.removeLayer(person.marker);
+        map.removeLayer(person.line);
         delete everyone[id];
       }
     })
    ;
 }
 
-setInterval(fadeOutOldMarkers, 15000, everyone);
+setInterval(fadeOutOldMarkers, 20000, everyone);
 
 var ws = new WebSocket('ws://' + window.location.host + '/ws');
 
