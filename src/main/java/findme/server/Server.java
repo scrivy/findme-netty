@@ -22,14 +22,14 @@ public final class Server {
             b.option(ChannelOption.SO_BACKLOG, 1024);
             b.group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
-                    .handler(new LoggingHandler(LogLevel.INFO))
+//                    .handler(new LoggingHandler(LogLevel.INFO))
                     .childHandler(new ServerInitializer());
 
-            Channel ch = b.bind(9000).sync().channel();
+            Channel ch = b.bind(8500).sync().channel();
 
             pingAndCleanUpWebSockets();
 
-            System.err.println("Open your web browser and navigate to ://127.0.0.1:9000/");
+            System.err.println("Open your web browser and navigate to ://127.0.0.1:8500/");
 
             ch.closeFuture().sync();
         } finally {

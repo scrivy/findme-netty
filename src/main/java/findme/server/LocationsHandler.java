@@ -30,7 +30,7 @@ public class LocationsHandler {
         // send all locations to client
         try {
             String jsonString = mapper.writeValueAsString(response);
-            ctx.channel().writeAndFlush(new TextWebSocketFrame(jsonString));
+            ctx.channel().write(new TextWebSocketFrame(jsonString));
             System.out.println(jsonString);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
@@ -83,8 +83,6 @@ public class LocationsHandler {
             e.printStackTrace();
             return;
         }
-
-        System.out.println(frameText);
 
         for (String key : sockets.keySet()) {
             if (!key.equals(originator)) {

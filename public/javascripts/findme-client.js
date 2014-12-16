@@ -26,21 +26,21 @@ var mymarker = L.marker([0, 0], {
 var everyone = {};
 
 function fadeOutOldMarkers(everyone) {
-  var ids = Object.keys(everyone);
+  Object.keys(everyone)
+    .forEach(function(id) {
+      var person = everyone[id]
+        , opacity = person.circle.options.opacity;
 
-  ids.forEach(function(id) {
-    var person = everyone[id]
-      , opacity = person.circle.options.opacity
-
-    if (opacity > 0) {
-      person.circle.setStyle({ opacity: opacity - 0.05});
-      person.marker.setOpacity(person.marker.options.opacity - 0.1)
-    } else {
-      map.removeLayer(person.circle);
-      map.removeLayer(person.marker);
-      delete everyone[id];
-    }
-  })
+      if (opacity > 0) {
+        person.circle.setStyle({ opacity: opacity - 0.05});
+        person.marker.setOpacity(person.marker.options.opacity - 0.1)
+      } else {
+        map.removeLayer(person.circle);
+        map.removeLayer(person.marker);
+        delete everyone[id];
+      }
+    })
+   ;
 }
 
 setInterval(fadeOutOldMarkers, 15000, everyone);
@@ -62,27 +62,15 @@ ws.onmessage = function(event) {
     case 'allLocations':
       var locations = message.data.locations;
 
-      var ids = Object.keys(locations);
-
-      for (var i=0; i<ids.length; i++) {
-        if (!everyone.hasOwnProperty(ids[i])) {
-          everyone[ids[i]] = {
-            marker: L.marker(locations[ids[i]].latlng).addTo(map),
-            circle: L.circle(locations[ids[i]].latlng, locations[ids[i]].accuracy).addTo(map)
+      Object.keys(locations)
+        .forEach(function(id) {
+          everyone[id] = {
+            marker: L.marker(locations[id].latlng).addTo(map),
+            circle: L.circle(locations[id].latlng, locations[id].accuracy).addTo(map),
+            line: L.polyline([mymarker.getLatLng(), locations[id].latlng]).addTo(map)
           };
-        } else {
-          everyone[ids[i]].marker.setLatLng(locations[ids[i]].latlng);
-          everyone[ids[i]].circle
-            .setLatLng(locations[ids[i]].latlng)
-            .setRadius(locations[ids[i]].accuracy)
-          ;
-        }
-      }
-
-      for (var j=i; j<everyone.length; j++) {
-        map.removeLayer(everyone[i]);
-        everyone.splice(i,1);
-      } 
+        })
+      ;
 
       break;
     case 'updateLocation':
@@ -95,11 +83,17 @@ ws.onmessage = function(event) {
           .setLatLng(location.latlng)
           .setRadius(location.accuracy)
           .setStyle({opacity: 0.5})
+        everyone[location.id].line
+          .setLatLngs([
+            mymarker.getLatLng(),
+            location.latlng
+          ])
         ;
       } else {
         everyone[location.id] = {
           marker: L.marker(location.latlng).addTo(map),
-          circle: L.circle(location.latlng, location.accuracy).addTo(map)
+          circle: L.circle(location.latlng, location.accuracy).addTo(map),
+          line: L.polyline([mymarker.getLatLng(), location.latlng]).addTo(map)
         };
       }
 
@@ -120,12 +114,23 @@ if (navigator.geolocation) {
       accuracy: Math.ceil(position.coords.accuracy)
     };
 
+    ws.send(JSON.stringify({ action: 'updateLocation', data: data}));
+
     mymarker.setLatLng(data.latlng);
     mycircle
       .setLatLng(data.latlng)
       .setRadius(position.coords.accuracy)
     ;
-    ws.send(JSON.stringify({ action: 'updateLocation', data: data}));
+
+    Object.keys(everyone)
+      .forEach(function(id) {
+        everyone[id].line
+          .setLatLngs([
+            data.latlng,
+            everyone[id].marker.getLatLng()
+          ])
+      })
+    ;
   }
 
   function geo_error() {
