@@ -5,3 +5,4 @@ build
 findme-netty.iml
 findme-netty.ipr
 findme-netty.iws
+node_modules

@@ -197,9 +197,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
 
         // Convert file separators.
         uri = uri.replace('/', File.separatorChar);
-
-        // Simplistic dumb security check.
-        // You will have to do something serious in the production environment.
+        
         if (uri.contains(File.separator + '.') ||
                 uri.contains('.' + File.separator) ||
                 uri.startsWith(".") || uri.endsWith(".") ||
