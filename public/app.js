@@ -73,6 +73,8 @@ ws.onmessage = function(event) {
         })
       ;
 
+      document.cookie = 'id=' + message.data.id;
+
       break;
     case 'updateLocation':
       var location = message.data;

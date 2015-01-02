@@ -4,13 +4,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.handler.codec.http.*;
-import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.PongWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.WebSocketFrame;
-import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
-import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
+import io.netty.handler.codec.http.websocketx.*;
 import io.netty.util.CharsetUtil;
 import io.netty.util.internal.SystemPropertyUtil;
 import org.apache.tika.Tika;
@@ -76,7 +70,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
                 WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel());
             } else {
                 handshaker.handshake(ctx.channel(), req);
-                addLocation(ctx);
+                addLocation(ctx, req.headers());
             }
         } else {
             handleFileRequest(ctx, req);
@@ -84,6 +78,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
     }
 
     private static final Pattern tilePattern = Pattern.compile("\\A/tiles/(\\d+)/(\\d+)/(\\d+).png\\z");
+
     private void handleFileRequest(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
         String uri = request.uri();
         String path = sanitizeUri(uri);
@@ -271,7 +266,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
                     .getName()));
         }
 
-        handleJsonEvent(ctx.channel().id().asShortText(), ((TextWebSocketFrame) frame).text());
+        handleJsonEvent(ctx, ((TextWebSocketFrame) frame).text());
     }
 
     private static void sendHttpResponse(
