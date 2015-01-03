@@ -8,6 +8,7 @@ import io.netty.handler.codec.http.websocketx.*;
 import io.netty.util.CharsetUtil;
 import io.netty.util.internal.SystemPropertyUtil;
 import org.apache.tika.Tika;
+import org.apache.commons.validator.routines.UrlValidator;
 
 import java.io.*;
 import java.net.URL;
@@ -176,7 +177,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         }
     }
 
-    private static final Pattern INSECURE_URI = Pattern.compile(".*[<>&\"].*");
+    private static final UrlValidator urlValidator = new UrlValidator();
 
     private static String sanitizeUri(String uri) {
         // Decode the path.
@@ -193,10 +194,8 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         // Convert file separators.
         uri = uri.replace('/', File.separatorChar);
         
-        if (uri.contains(File.separator + '.') ||
-                uri.contains('.' + File.separator) ||
-                uri.startsWith(".") || uri.endsWith(".") ||
-                INSECURE_URI.matcher(uri).matches()) {
+        if (!urlValidator.isValid("http://aoeuaoeu.com" + uri)) {
+            System.out.println("NOT VALID URL: " + uri);
             return null;
         }
 
