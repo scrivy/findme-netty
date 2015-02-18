@@ -107,7 +107,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
                 if (!zxDir.exists()) {
                     zxDir.mkdirs();
                 }
-                URL tileUrl = new URL("http://a.tile.thunderforest.com/outdoors/"+ m.group(1) + "/" + m.group(2) + "/" + m.group(3) + ".png");
+                URL tileUrl = new URL("http://a.tile.thunderforest.com/transport/"+ m.group(1) + "/" + m.group(2) + "/" + m.group(3) + ".png");
                 ReadableByteChannel rbc = Channels.newChannel(tileUrl.openStream());
                 FileOutputStream fos = new FileOutputStream("public/tiles/" + m.group(1) + "/" + m.group(2) + "/" + m.group(3) + ".png");
                 fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
