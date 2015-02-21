@@ -49,7 +49,6 @@ setInterval(fadeOutOldMarkers, 20000, everyone);
 var ws;
 function wsInit() {
 	ws = new WebSocket('ws://' + window.location.host + '/ws');
-	console.log(ws);
 
 	ws.onmessage = function(event) {
 	    try {
@@ -71,7 +70,8 @@ function wsInit() {
 	          everyone[id] = {
 	            marker: L.marker(locations[id].latlng).addTo(map),
 	            circle: L.circle(locations[id].latlng, locations[id].accuracy).addTo(map),
-	            line: L.polyline([mymarker.getLatLng(), locations[id].latlng]).addTo(map)
+	            line: L.polyline([mymarker.getLatLng(), locations[id].latlng]).addTo(map),
+	            trail: L.polyline([locations[id].latlng]).addTo(map)
 	          };
 	        })
 	      ;
@@ -82,25 +82,31 @@ function wsInit() {
 	    case 'updateLocation':
 	      var location = message.data;
 	      if (everyone[location.id]) {
-	        everyone[location.id].marker
+	      	var thisGuy = everyone[location.id];
+
+	        thisGuy.marker
 	          .setLatLng(location.latlng)
-	          .setOpacity(1)
-	        everyone[location.id].circle
+	          .setOpacity(1);
+	        thisGuy.circle
 	          .setLatLng(location.latlng)
 	          .setRadius(location.accuracy)
-	          .setStyle({opacity: 0.5})
-	        everyone[location.id].line
+	          .setStyle({opacity: 0.5});
+	        thisGuy.line
 	          .setLatLngs([
 	            mymarker.getLatLng(),
 	            location.latlng
-	          ])
-	        ;
+	          ]);
+	        thisGuy.trail
+	        	.addLatLng(location.latlng);
 	      } else {
 	        everyone[location.id] = {
 	          marker: L.marker(location.latlng).addTo(map),
 	          circle: L.circle(location.latlng, location.accuracy).addTo(map),
-	          line: L.polyline([mymarker.getLatLng(), location.latlng]).addTo(map)
+	          line: L.polyline([mymarker.getLatLng(), location.latlng]).addTo(map),
+	          trail: L.polyline([location.latlng]).addTo(map)
 	        };
+
+	        console.log(everyone[location.id])
 	      }
 
 	      break;
