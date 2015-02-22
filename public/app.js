@@ -47,8 +47,12 @@ function fadeOutOldMarkers(everyone) {
 setInterval(fadeOutOldMarkers, 20000, everyone);
 
 var ws;
-function wsInit() {
+function wsInit(position) {
 	ws = new WebSocket('ws://' + window.location.host + '/ws');
+
+	ws.onopen = function() {
+		geo_success(position);
+	};
 
 	ws.onmessage = function(event) {
 	    try {
@@ -105,8 +109,6 @@ function wsInit() {
 	          line: L.polyline([mymarker.getLatLng(), location.latlng]).addTo(map),
 	          trail: L.polyline([location.latlng]).addTo(map)
 	        };
-
-	        console.log(everyone[location.id])
 	      }
 
 	      break;
@@ -145,7 +147,7 @@ function geo_success(position) {
 		;
 	} else if (!ws) {
 		console.log('got initial fix, initializing websockets');
-		wsInit();
+		wsInit(position);
 	}
 }
 
