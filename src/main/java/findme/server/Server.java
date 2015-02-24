@@ -4,23 +4,18 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 
 import static findme.server.LocationsHandler.pingAndCleanUpWebSockets;
 
 public final class Server {
 
     public static void main(String[] args) throws Exception {
-        // Configure the server.
 
-        String OS = System.getProperty("os.name");
-        Boolean isLinux = OS.equals("Linux");
+        Boolean isLinux = System.getProperty("os.name").equals("Linux");
 
         EventLoopGroup bossGroup;
         EventLoopGroup workerGroup;
@@ -39,7 +34,6 @@ public final class Server {
             if (isLinux) {
                 b.group(bossGroup, workerGroup)
                         .channel(EpollServerSocketChannel.class)
-//                    .handler(new LoggingHandler(LogLevel.INFO))
                         .childHandler(new ServerInitializer());
             } else {
                 b.group(bossGroup, workerGroup)

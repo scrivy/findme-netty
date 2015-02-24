@@ -111,8 +111,9 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
                 ReadableByteChannel rbc = Channels.newChannel(tileUrl.openStream());
                 FileOutputStream fos = new FileOutputStream("public/tiles/" + m.group(1) + "/" + m.group(2) + "/" + m.group(3) + ".png");
                 fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+                fos.close();
 
-                System.out.println("downloading " + uri);
+                System.out.println("downloaded " + uri);
             } else {
                 sendError(ctx, NOT_FOUND);
                 return;
