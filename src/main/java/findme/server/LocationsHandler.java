@@ -148,6 +148,6 @@ public class LocationsHandler {
             }
         };
 
-        scheduler.scheduleAtFixedRate(pinger, 10, 60, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(pinger, 600, 600, TimeUnit.SECONDS);
     }
 }
