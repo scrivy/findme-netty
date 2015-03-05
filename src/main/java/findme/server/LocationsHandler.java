@@ -22,7 +22,7 @@ public class LocationsHandler {
 
     private static final Pattern cookieIdPattern = Pattern.compile("\\Aid=(\\w{8})\\z");
 
-    public static void addLocation(ChannelHandlerContext ctx, HttpHeaders headers) {
+    public static Location addLocation(ChannelHandlerContext ctx, HttpHeaders headers) {
         String id = ctx.channel().id().asShortText();
 
         if (headers != null && headers.contains("Cookie")) {
@@ -42,8 +42,8 @@ public class LocationsHandler {
         ObjectNode data = response.putObject("data");
         data.put("id", id);
         ObjectNode locations = data.putObject("locations");
-        for (String key : sockets.keySet()) {
-            locations.set(key, sockets.get(key).getLatLng());
+        for (Map.Entry<String, Location> entry : sockets.entrySet()) {
+            locations.set(entry.getKey(), entry.getValue().getLatLng());
         }
 
         // send all locations to client
@@ -55,8 +55,10 @@ public class LocationsHandler {
             e.printStackTrace();
         }
 
-        sockets.put(id, new Location(ctx));
+        Location location = new Location(ctx);
+        sockets.put(id, location);
         System.out.println(sockets.size() + " people connected");
+        return location;
     }
 
     public static void removeLocation(String originator) {
@@ -86,17 +88,18 @@ public class LocationsHandler {
             double lng = latLng.get(1).asDouble();
             int accuracy = data.get("accuracy").asInt();
 
-            broadcastUpdatedLocation(originator, dataToJson(originator, lat, lng, accuracy));
             Location location = sockets.get(originator);
             if (location != null) {
                 location.update(lat, lng, accuracy);
             } else {
-                addLocation(ctx, null);
+                location = addLocation(ctx, null);
             }
+
+            broadcastUpdatedLocation(location, dataToJson(originator, lat, lng, accuracy));
         }
     }
 
-    private static void broadcastUpdatedLocation(String originator, ObjectNode json) {
+    private static void broadcastUpdatedLocation(Location originator, ObjectNode json) {
         // build json to send
         ObjectNode jsonToSend = mapper.createObjectNode();
         jsonToSend.put("action", "updateLocation");
@@ -109,9 +112,9 @@ public class LocationsHandler {
             return;
         }
 
-        for (String key : sockets.keySet()) {
-            if (!key.equals(originator)) {
-                sockets.get(key).write(frameText);
+        for (Location location : sockets.values()) {
+            if (location != originator) {
+                location.write(frameText);
             }
         }
     }
@@ -135,11 +138,11 @@ public class LocationsHandler {
         final Runnable pinger = new Runnable() {
             @Override
             public void run() {
-                for (String key : sockets.keySet()) {
-                    Location location = sockets.get(key);
+                for (Map.Entry<String, Location> entry : sockets.entrySet()) {
+                    Location location = entry.getValue();
                     if (!location.getAckPing()) {
                         System.out.println("Stagnant Location");
-                        removeLocation(key);
+                        removeLocation(entry.getKey());
                     } else {
                         location.setAckPing(false);
                         location.sendPing();
