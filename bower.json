@@ -1,10 +1,5 @@
 {
   "name": "findme",
-  "version": "0.0.0",
-  "authors": [
-    "Daniel <dscrivano@insikt.com>"
-  ],
-  "license": "MIT",
   "ignore": [
     "**/.*",
     "node_modules",
@@ -14,8 +9,8 @@
     "tests"
   ],
   "dependencies": {
-    "jquery": "~2.1.3",
-    "leaflet": "~0.7.3",
-    "semantic-ui": "~1.5.2"
+    "jquery": "2.1.3",
+    "leaflet": "0.7.3",
+    "semantic-ui": "1.11.4"
   }
 }

@@ -251,7 +251,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
 
         // Check for closing frame
         if (frame instanceof CloseWebSocketFrame) {
-            removeLocation(ctx.channel().id().asShortText());
+            //removeLocation(ctx.channel().id().asShortText());
             handshaker.close(ctx.channel(), (CloseWebSocketFrame) frame.retain());
             return;
         }

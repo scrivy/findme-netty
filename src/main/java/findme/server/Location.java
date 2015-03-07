@@ -5,6 +5,9 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+
 import static findme.server.LocationsHandler.dataToJson;
 
 public class Location {
@@ -13,6 +16,7 @@ public class Location {
     private double lat;
     private double lng;
     private int accuracy;
+    private Instant fixedLocationSince;
 
     Location(ChannelHandlerContext ctx) {
         this.ctx = ctx;
@@ -42,5 +46,17 @@ public class Location {
 
     public void setAckPing(boolean val) {
         ackPing = val;
+    }
+
+    public Instant getFixedLocationSince() {
+        return fixedLocationSince;
+    }
+
+    public void fixLocation(boolean state) {
+        if (state) {
+            fixedLocationSince = Instant.now().plus(1, ChronoUnit.HOURS);
+        } else {
+            fixedLocationSince = null;
+        }
     }
 }

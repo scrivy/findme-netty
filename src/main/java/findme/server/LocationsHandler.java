@@ -10,6 +10,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.regex.Matcher;
@@ -80,6 +81,12 @@ public class LocationsHandler {
         }
         String action = event.get("action").toString();
 
+        // TODO separate some concerns
+        Location location = sockets.get(originator);
+        if (location == null) {
+            location = addLocation(ctx, null);
+        }
+
         if (action.equals("\"updateLocation\"")) {
             JsonNode data = event.get("data");
             JsonNode latLng = data.get("latlng");
@@ -88,14 +95,12 @@ public class LocationsHandler {
             double lng = latLng.get(1).asDouble();
             int accuracy = data.get("accuracy").asInt();
 
-            Location location = sockets.get(originator);
-            if (location != null) {
-                location.update(lat, lng, accuracy);
-            } else {
-                location = addLocation(ctx, null);
-            }
+            location.update(lat, lng, accuracy);
 
             broadcastUpdatedLocation(location, dataToJson(originator, lat, lng, accuracy));
+        } else if (action.equals("\"changeFixedLocationState\"")) {
+            boolean state = event.get("data").asBoolean();
+            location.fixLocation(state);
         }
     }
 
@@ -112,11 +117,11 @@ public class LocationsHandler {
             return;
         }
 
-        for (Location location : sockets.values()) {
+        sockets.values().forEach(location -> {
             if (location != originator) {
                 location.write(frameText);
             }
-        }
+        });
     }
 
     public static ObjectNode dataToJson(String originator, double lat, double lng, int accuracy) {
@@ -138,14 +143,23 @@ public class LocationsHandler {
         final Runnable pinger = new Runnable() {
             @Override
             public void run() {
+                Instant now = Instant.now();
                 for (Map.Entry<String, Location> entry : sockets.entrySet()) {
                     Location location = entry.getValue();
-                    if (!location.getAckPing()) {
-                        System.out.println("Stagnant Location");
-                        removeLocation(entry.getKey());
+                    Instant since = location.getFixedLocationSince();
+                    if (since != null) {
+                        if (now.isAfter(since)) {
+                            System.out.println("removed fixed location");
+                            removeLocation(entry.getKey());
+                        }
                     } else {
-                        location.setAckPing(false);
-                        location.sendPing();
+                        if (!location.getAckPing()) {
+                            removeLocation(entry.getKey());
+                            System.out.println("removed stagnant location");
+                        } else {
+                            location.setAckPing(false);
+                            location.sendPing();
+                        }
                     }
                 }
             }

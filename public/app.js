@@ -1,12 +1,5 @@
 var map = L.map('map').setView([38.55, -121.74], 13);
 
-//L.tileLayer('http://{s}.tile.cloudmade.com/e1d37bab0aaf4f67b0af332838f24a73/997/256/{z}/{x}/{y}.png', {
-//  attribution: 'Map data',
-//  maxZoom: 18
-//}).addTo(map);
-
-//L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
-//L.tileLayer('http://{s}.tile.thunderforest.com/outdoors/{z}/{x}/{y}.png').addTo(map);
 L.tileLayer('/tiles/{z}/{x}/{y}.png').addTo(map);
 
 map.locate({setView: true, maxZoom: 18});
@@ -155,3 +148,15 @@ function geo_error() {
 	console.log('geolocation error');
 }
 
+// modal
+var $modalDiv = $('.ui.modal');
+$('#settings').click(function() {
+    $modalDiv.modal('show');
+});
+
+var fixed = false;
+$('.ui.button').click(function() {
+    $(this).toggleClass('active');
+    fixed = !fixed;
+    ws.send(JSON.stringify({ action: 'changeFixedLocationState', data: fixed}));
+});
