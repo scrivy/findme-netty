@@ -23,19 +23,43 @@ public class LocationsHandler {
 
     private static final Pattern cookieIdPattern = Pattern.compile("\\Aid=(\\w{8})\\z");
 
+    // TODO: seperate concerns
     public static Location addLocation(ChannelHandlerContext ctx, HttpHeaders headers) {
         String id = ctx.channel().id().asShortText();
 
+        Location location = null;
         if (headers != null && headers.contains("Cookie")) {
             Matcher m = cookieIdPattern.matcher(headers.get("Cookie"));
             if (m.find()) {
                 String oldId = m.group(1);
                 if (sockets.containsKey(oldId)) {
                     System.out.println("still has old location");
-                    removeLocation(oldId);
+                    location = sockets.get(oldId);
+                    sockets.remove(oldId);
+                    location.setCtx(ctx);
+                    sockets.put(id, location);
+
+                    try {
+                        ObjectNode response = mapper.createObjectNode();
+                        response.put("action", "updateLocationId");
+                        ObjectNode data = response.putObject("data");
+                        data.put("oldId", oldId);
+                        data.put("newId", id);
+                        String jsonString = mapper.writeValueAsString(response);
+                        broadcastMessage(jsonString, location);
+                    } catch (JsonProcessingException e) {
+                        e.printStackTrace();
+                    }
+
                 }
             }
         }
+
+        if (location == null) {
+            location = new Location(ctx);
+        }
+
+        System.out.println(sockets.size() + " people connected");
 
         // build the allLocations json response
         ObjectNode response = mapper.createObjectNode();
@@ -44,7 +68,10 @@ public class LocationsHandler {
         data.put("id", id);
         ObjectNode locations = data.putObject("locations");
         for (Map.Entry<String, Location> entry : sockets.entrySet()) {
-            locations.set(entry.getKey(), entry.getValue().getLatLng());
+            Location entryLocation = entry.getValue();
+            if (entryLocation != location) {
+                locations.set(entry.getKey(), entryLocation.getLatLng());
+            }
         }
 
         // send all locations to client
@@ -56,9 +83,7 @@ public class LocationsHandler {
             e.printStackTrace();
         }
 
-        Location location = new Location(ctx);
         sockets.put(id, location);
-        System.out.println(sockets.size() + " people connected");
         return location;
     }
 
@@ -83,7 +108,7 @@ public class LocationsHandler {
 
         // TODO separate some concerns
         Location location = sockets.get(originator);
-        if (location == null) {
+        if (location == null) { // TODO: fixxxxx
             location = addLocation(ctx, null);
         }
 
@@ -122,6 +147,20 @@ public class LocationsHandler {
                 location.write(frameText);
             }
         });
+    }
+
+    private static void broadcastMessage(String message, Location originator) {
+        if (originator != null) {
+            sockets.values().forEach(location -> {
+                if (location != originator) {
+                    location.write(message);
+                }
+            });
+        } else {
+            sockets.values().forEach(location -> {
+                location.write(message);
+            });
+        }
     }
 
     public static ObjectNode dataToJson(String originator, double lat, double lng, int accuracy) {

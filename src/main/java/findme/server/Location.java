@@ -11,7 +11,7 @@ import java.time.temporal.ChronoUnit;
 import static findme.server.LocationsHandler.dataToJson;
 
 public class Location {
-    private final ChannelHandlerContext ctx;
+    private ChannelHandlerContext ctx;
     private boolean ackPing = true;
     private double lat;
     private double lng;
@@ -19,13 +19,17 @@ public class Location {
     private Instant fixedLocationSince;
 
     Location(ChannelHandlerContext ctx) {
-        this.ctx = ctx;
+        setCtx(ctx);
     }
 
     public void update(double lat, double lng, int accuracy) {
         this.lat = lat;
         this.lng = lng;
         this.accuracy = accuracy;
+    }
+
+    public void setCtx(ChannelHandlerContext ctx) {
+        this.ctx = ctx;
     }
 
     public ObjectNode getLatLng() {
