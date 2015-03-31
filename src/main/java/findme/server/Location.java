@@ -25,7 +25,7 @@ public class Location {
             this.lat = latLng.getLatitude();
             this.lng = latLng.getLongitude();
         //    this.accuracy = latLng.getAccuracyRadius();
-            this.accuracy = 3000;
+            this.accuracy = 7000;
         }
     }
 
