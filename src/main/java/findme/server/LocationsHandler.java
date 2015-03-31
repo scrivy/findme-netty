@@ -5,11 +5,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.maxmind.geoip2.exception.GeoIp2Exception;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -26,6 +28,10 @@ public class LocationsHandler {
     // TODO: seperate concerns
     public static Location addLocation(ChannelHandlerContext ctx, HttpHeaders headers) {
         String id = ctx.channel().id().asShortText();
+
+        headers.forEach(entry -> {
+            System.out.println(entry.getKey() + ": " + entry.getValue());
+        });
 
         Location location = null;
         if (headers != null && headers.contains("Cookie")) {
@@ -55,8 +61,17 @@ public class LocationsHandler {
             }
         }
 
+        com.maxmind.geoip2.record.Location latLng = null;
         if (location == null) {
-            location = new Location(ctx);
+            IpToLatLng ipToLatLng = IpToLatLng.getInstance();
+            try {
+                InetAddress ip = InetAddress.getByName(headers.get("X-Real-IP"));
+                latLng = ipToLatLng.getLocationFromIP(ip);
+            } catch (IOException | GeoIp2Exception e) {
+                e.printStackTrace();
+            }
+
+            location = new Location(ctx, latLng);
         }
 
         System.out.println(sockets.size() + " people connected");
@@ -72,6 +87,14 @@ public class LocationsHandler {
             if (entryLocation != location) {
                 locations.set(entry.getKey(), entryLocation.getLatLng());
             }
+        }
+
+        if (latLng != null) {
+            ObjectNode yourLocation = data.putObject("yourLocation");
+            ArrayNode latlng = yourLocation.putArray("latlng");
+            latlng.add(latLng.getLatitude());
+            latlng.add(latLng.getLongitude());
+            yourLocation.put("accuracy", 3000); //latLng.getAccuracyRadius());
         }
 
         // send all locations to client
