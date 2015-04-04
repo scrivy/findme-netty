@@ -71,7 +71,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
                 WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel());
             } else {
                 handshaker.handshake(ctx.channel(), req);
-                addLocation(ctx, req.headers());
+                addCtx(ctx, req.headers());
             }
         } else {
             handleFileRequest(ctx, req);

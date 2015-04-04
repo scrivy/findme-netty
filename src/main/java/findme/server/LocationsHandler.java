@@ -5,28 +5,28 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.maxmind.geoip2.exception.GeoIp2Exception;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class LocationsHandler {
     private static final Map<String, Location> sockets = new ConcurrentHashMap<>();
+    private static final Set<ChannelHandlerContext> roSockets = new CopyOnWriteArraySet<>();
     private static final ObjectMapper mapper = new ObjectMapper();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     private static final Pattern cookieIdPattern = Pattern.compile("\\Aid=(\\w{8})\\z");
 
     // TODO: seperate concerns
-    public static Location addLocation(ChannelHandlerContext ctx, HttpHeaders headers) {
+    public static void addCtx(ChannelHandlerContext ctx, HttpHeaders headers) {
         String id = ctx.channel().id().asShortText();
 
         // build the allLocations json response
@@ -73,28 +73,7 @@ public class LocationsHandler {
             }
         }
 
-        com.maxmind.geoip2.record.Location latLng = null;
-        if (location == null) {
-            IpToLatLng ipToLatLng = IpToLatLng.getInstance();
-            try {
-                InetAddress ip = InetAddress.getByName(headers.get("X-Real-IP"));
-                latLng = ipToLatLng.getLocationFromIP(ip);
-            } catch (IOException | GeoIp2Exception e) {
-                e.printStackTrace();
-            }
-
-            location = new Location(ctx, latLng);
-        }
-
         System.out.println((sockets.size() + 1) + " people connected");
-
-        if (latLng != null) {
-            ObjectNode yourLocation = data.putObject("yourLocation");
-            ArrayNode latlng = yourLocation.putArray("latlng");
-            latlng.add(latLng.getLatitude());
-            latlng.add(latLng.getLongitude());
-            yourLocation.put("accuracy", 7000); //latLng.getAccuracyRadius());
-        }
 
         // send all locations to client
         try {
@@ -105,8 +84,7 @@ public class LocationsHandler {
             e.printStackTrace();
         }
 
-        sockets.put(id, location);
-        return location;
+        roSockets.add(ctx);
     }
 
     public static void removeLocation(String originator) {
@@ -128,13 +106,8 @@ public class LocationsHandler {
         }
         String action = event.get("action").toString();
 
-        // TODO separate some concerns
-        Location location = sockets.get(originator);
-        if (location == null) { // TODO: fixxxxx
-            location = addLocation(ctx, null);
-        }
-
         if (action.equals("\"updateLocation\"")) {
+            Location location = getLocation(ctx);
             JsonNode data = event.get("data");
             JsonNode latLng = data.get("latlng");
 
@@ -146,9 +119,23 @@ public class LocationsHandler {
 
             broadcastUpdatedLocation(location, dataToJson(originator, lat, lng, accuracy));
         } else if (action.equals("\"changeFixedLocationState\"")) {
+            Location location = getLocation(ctx);
             boolean state = event.get("data").asBoolean();
             location.fixLocation(state);
         }
+    }
+
+    private static Location getLocation(ChannelHandlerContext ctx) {
+        String id = ctx.channel().id().asShortText();
+
+        Location location = sockets.get(id);
+        if (location == null) {
+            location = new Location(ctx);
+            sockets.put(id, location);
+            roSockets.remove(ctx);
+        }
+
+        return location;
     }
 
     private static void broadcastUpdatedLocation(Location originator, ObjectNode json) {
@@ -164,25 +151,20 @@ public class LocationsHandler {
             return;
         }
 
-        sockets.values().forEach(location -> {
-            if (location != originator) {
-                location.write(frameText);
-            }
-        });
+        broadcastMessage(frameText, originator);
     }
 
     private static void broadcastMessage(String message, Location originator) {
-        if (originator != null) {
-            sockets.values().forEach(location -> {
-                if (location != originator) {
-                    location.write(message);
-                }
-            });
-        } else {
-            sockets.values().forEach(location -> {
+
+        sockets.values().forEach(location -> {
+            if (location != originator) {
                 location.write(message);
-            });
-        }
+            }
+        });
+
+        roSockets.forEach(ctx -> {
+            ctx.channel().writeAndFlush(new TextWebSocketFrame(message));
+        });
     }
 
     public static ObjectNode dataToJson(String originator, double lat, double lng, int accuracy) {

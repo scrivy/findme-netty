@@ -18,15 +18,8 @@ public class Location {
     private int accuracy;
     private Instant fixedLocationSince;
 
-    Location(ChannelHandlerContext ctx, com.maxmind.geoip2.record.Location latLng) {
+    Location(ChannelHandlerContext ctx) {
         setCtx(ctx);
-
-        if (latLng != null) {
-            this.lat = latLng.getLatitude();
-            this.lng = latLng.getLongitude();
-        //    this.accuracy = latLng.getAccuracyRadius();
-            this.accuracy = 7000;
-        }
     }
 
     public void update(double lat, double lng, int accuracy) {
