@@ -12,14 +12,13 @@ import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class LocationsHandler {
     private static final Map<String, Location> sockets = new ConcurrentHashMap<>();
-    private static final Set<ChannelHandlerContext> roSockets = new CopyOnWriteArraySet<>();
+    private static final Map<String, Location> roSockets = new ConcurrentHashMap<>();
     private static final ObjectMapper mapper = new ObjectMapper();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
@@ -66,14 +65,20 @@ public class LocationsHandler {
             }
         }
 
+        if (location == null) {
+            location = new Location(ctx);
+            roSockets.put(id, new Location(ctx));
+        }
+
+        System.out.println(sockets.size() + " people with locations connected");
+        System.out.println(roSockets.size() + " anonymous people connected");
+
         for (Map.Entry<String, Location> entry : sockets.entrySet()) {
             Location entryLocation = entry.getValue();
             if (entryLocation != location) {
                 locations.set(entry.getKey(), entryLocation.getLatLng());
             }
         }
-
-        System.out.println((sockets.size() + 1) + " people connected");
 
         // send all locations to client
         try {
@@ -83,8 +88,6 @@ public class LocationsHandler {
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
-
-        roSockets.add(ctx);
     }
 
     public static void removeLocation(String originator) {
@@ -130,9 +133,12 @@ public class LocationsHandler {
 
         Location location = sockets.get(id);
         if (location == null) {
-            location = new Location(ctx);
-            sockets.put(id, location);
-            roSockets.remove(ctx);
+            location = roSockets.remove(id);
+            if (location == null) {
+                location = new Location(ctx);
+            } else {
+                sockets.put(id, location);
+            }
         }
 
         return location;
@@ -162,8 +168,8 @@ public class LocationsHandler {
             }
         });
 
-        roSockets.forEach(ctx -> {
-            ctx.channel().writeAndFlush(new TextWebSocketFrame(message));
+        roSockets.values().forEach(location -> {
+            location.write(message);
         });
     }
 
@@ -187,27 +193,32 @@ public class LocationsHandler {
             @Override
             public void run() {
                 Instant now = Instant.now();
-                for (Map.Entry<String, Location> entry : sockets.entrySet()) {
-                    Location location = entry.getValue();
-                    Instant since = location.getFixedLocationSince();
-                    if (since != null) {
-                        if (now.isAfter(since)) {
-                            System.out.println("removed fixed location");
-                            removeLocation(entry.getKey());
-                        }
-                    } else {
-                        if (!location.getAckPing()) {
-                            removeLocation(entry.getKey());
-                            System.out.println("removed stagnant location");
-                        } else {
-                            location.setAckPing(false);
-                            location.sendPing();
-                        }
-                    }
-                }
+                removeLocIfStagnant(sockets, now);
+                removeLocIfStagnant(roSockets, now);
             }
         };
 
         scheduler.scheduleAtFixedRate(pinger, 600, 600, TimeUnit.SECONDS);
+    }
+
+    private static void removeLocIfStagnant(Map<String, Location> sockets, Instant now) {
+        for (Map.Entry<String, Location> entry : sockets.entrySet()) {
+            Location location = entry.getValue();
+            Instant since = location.getFixedLocationSince();
+            if (since != null) {
+                if (now.isAfter(since)) {
+                    System.out.println("removed fixed location");
+                    removeLocation(entry.getKey());
+                }
+            } else {
+                if (!location.getAckPing()) {
+                    removeLocation(entry.getKey());
+                    System.out.println("removed stagnant location");
+                } else {
+                    location.setAckPing(false);
+                    location.sendPing();
+                }
+            }
+        }
     }
 }
