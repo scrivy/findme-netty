@@ -33,7 +33,7 @@ public class LocationsHandler {
         response.put("action", "allLocations");
         ObjectNode data = response.putObject("data");
         data.put("id", id);
-        ObjectNode locations = data.putObject("locations");
+        ArrayNode locations = data.putArray("locations");
 
         Location location = null;
         if (headers != null && headers.contains("Cookie")) {
@@ -76,7 +76,7 @@ public class LocationsHandler {
         for (Map.Entry<String, Location> entry : sockets.entrySet()) {
             Location entryLocation = entry.getValue();
             if (entryLocation != location) {
-                locations.set(entry.getKey(), entryLocation.getLatLng());
+                locations.add(entryLocation.getLatLng());
             }
         }
 
@@ -202,23 +202,22 @@ public class LocationsHandler {
     }
 
     private static void removeLocIfStagnant(Map<String, Location> sockets, Instant now) {
-        for (Map.Entry<String, Location> entry : sockets.entrySet()) {
-            Location location = entry.getValue();
+        sockets.forEach((id, location) -> {
             Instant since = location.getFixedLocationSince();
             if (since != null) {
                 if (now.isAfter(since)) {
                     System.out.println("removed fixed location");
-                    removeLocation(entry.getKey());
+                    removeLocation(id);
                 }
             } else {
                 if (!location.getAckPing()) {
-                    removeLocation(entry.getKey());
+                    removeLocation(id);
                     System.out.println("removed stagnant location");
                 } else {
                     location.setAckPing(false);
                     location.sendPing();
                 }
             }
-        }
+        });
     }
 }
