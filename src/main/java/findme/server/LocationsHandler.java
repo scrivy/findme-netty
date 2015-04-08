@@ -18,7 +18,6 @@ import java.util.regex.Pattern;
 
 public class LocationsHandler {
     private static final Map<String, Location> sockets = new ConcurrentHashMap<>();
-    private static final Map<String, Location> roSockets = new ConcurrentHashMap<>();
     private static final ObjectMapper mapper = new ObjectMapper();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
@@ -29,22 +28,23 @@ public class LocationsHandler {
         String id = ctx.channel().id().asShortText();
 
         // build the allLocations json response
-        ObjectNode response = mapper.createObjectNode();
-        response.put("action", "allLocations");
-        ObjectNode data = response.putObject("data");
-        data.put("id", id);
-        ArrayNode locations = data.putArray("locations");
 
-        Location location = null;
+        Location location;
         if (headers != null && headers.contains("Cookie")) {
             Matcher m = cookieIdPattern.matcher(headers.get("Cookie"));
             if (m.find()) {
                 String oldId = m.group(1);
                 if (sockets.containsKey(oldId)) {
                     System.out.println("still has old location");
-                    location = sockets.get(oldId);
-                    sockets.remove(oldId);
+                    location = sockets.remove(oldId);
                     location.setCtx(ctx);
+
+                    try {
+                        broadcastMessage(getAllLocationsJson(id), null);
+                    } catch (JsonProcessingException e) {
+                        e.printStackTrace();
+                    }
+
                     sockets.put(id, location);
 
                     try {
@@ -73,13 +73,6 @@ public class LocationsHandler {
         System.out.println(sockets.size() + " people with locations connected");
         System.out.println(roSockets.size() + " anonymous people connected");
 
-        for (Map.Entry<String, Location> entry : sockets.entrySet()) {
-            Location entryLocation = entry.getValue();
-            if (entryLocation != location) {
-                locations.add(entryLocation.getLatLng());
-            }
-        }
-
         // send all locations to client
         try {
             String jsonString = mapper.writeValueAsString(response);
@@ -88,6 +81,23 @@ public class LocationsHandler {
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
+    }
+
+    private static ObjectNode getAllLocationsJson(String theirId) throws JsonProcessingException {
+        ObjectNode json = mapper.createObjectNode();
+        json.put("action", "allLocations");
+        ObjectNode data = json.putObject("data");
+        data.put("id", theirId);
+        ArrayNode locations = data.putArray("locations");
+
+        sockets.values().forEach((location) -> {
+            ObjectNode latLng = location.getLatLngJson();
+            if (latLng != null) {
+                locations.add(latLng);
+            }
+        });
+
+        return json;
     }
 
     public static void removeLocation(String originator) {
@@ -160,28 +170,20 @@ public class LocationsHandler {
         broadcastMessage(frameText, originator);
     }
 
-    private static void broadcastMessage(String message, Location originator) {
+    private static void broadcastMessage(ObjectNode json, Location originator) {
+        String message;
+        try {
+            message = mapper.writeValueAsString(json);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            return;
+        }
 
         sockets.values().forEach(location -> {
             if (location != originator) {
                 location.write(message);
             }
         });
-
-        roSockets.values().forEach(location -> {
-            location.write(message);
-        });
-    }
-
-    public static ObjectNode dataToJson(String originator, double lat, double lng, int accuracy) {
-        ObjectNode data = mapper.createObjectNode();
-        data.put("id", originator);
-        ArrayNode latlng = data.putArray("latlng");
-        latlng.add(lat);
-        latlng.add(lng);
-        data.put("accuracy", accuracy);
-
-        return data;
     }
 
     public static void touchLocation(String originator) {

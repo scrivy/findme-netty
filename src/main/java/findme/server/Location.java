@@ -1,5 +1,7 @@
 package findme.server;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
@@ -8,18 +10,20 @@ import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
-import static findme.server.LocationsHandler.dataToJson;
-
 public class Location {
     private ChannelHandlerContext ctx;
+    private String id;
     private boolean ackPing = true;
     private double lat;
     private double lng;
     private int accuracy;
     private Instant fixedLocationSince;
 
+    private static final ObjectMapper mapper = new ObjectMapper();
+
     Location(ChannelHandlerContext ctx) {
         setCtx(ctx);
+        id = ctx.channel().id().asShortText();
     }
 
     public void update(double lat, double lng, int accuracy) {
@@ -32,8 +36,17 @@ public class Location {
         this.ctx = ctx;
     }
 
-    public ObjectNode getLatLng() {
-        return dataToJson(ctx.channel().id().asShortText(), lat, lng, accuracy);
+    public ObjectNode getLatLngJson() {
+        if (lat == 0) return null;
+
+        ObjectNode json = mapper.createObjectNode();
+        json.put("id", id);
+        ArrayNode latlng = json.putArray("latlng");
+        latlng.add(lat);
+        latlng.add(lng);
+        json.put("accuracy", accuracy);
+
+        return json;
     }
 
     public void write(String frameText) {
@@ -58,7 +71,7 @@ public class Location {
 
     public void fixLocation(boolean state) {
         if (state) {
-            fixedLocationSince = Instant.now().plus(1, ChronoUnit.HOURS);
+            fixedLocationSince = Instant.now().plus(10, ChronoUnit.MINUTES);
         } else {
             fixedLocationSince = null;
         }
