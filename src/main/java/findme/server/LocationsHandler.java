@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -29,7 +28,7 @@ public class LocationsHandler {
 
         // build the allLocations json response
 
-        Location location;
+        Location location = null;
         if (headers != null && headers.contains("Cookie")) {
             Matcher m = cookieIdPattern.matcher(headers.get("Cookie"));
             if (m.find()) {
@@ -38,66 +37,52 @@ public class LocationsHandler {
                     System.out.println("still has old location");
                     location = sockets.remove(oldId);
                     location.setCtx(ctx);
-
-                    try {
-                        broadcastMessage(getAllLocationsJson(id), null);
-                    } catch (JsonProcessingException e) {
-                        e.printStackTrace();
-                    }
-
                     sockets.put(id, location);
 
-                    try {
-                        ObjectNode update = mapper.createObjectNode();
-                        update.put("action", "updateLocationId");
-                        ObjectNode data2 = update.putObject("data");
-                        data2.put("oldId", oldId);
-                        data2.put("newId", id);
-                        String jsonString = mapper.writeValueAsString(update);
-                        broadcastMessage(jsonString, location);
-                    } catch (JsonProcessingException e) {
-                        e.printStackTrace();
-                    }
-                    
-                    ObjectNode yourLocation = data.putObject("yourLocation");
-                    yourLocation.setAll(location.getLatLng());
+                    // update other clients about changed id
+                    ObjectNode update = mapper.createObjectNode();
+                    update.put("action", "updateLocationId");
+                    ObjectNode data = update.putObject("data");
+                    data.put("oldId", oldId);
+                    data.put("newId", id);
+                    broadcastMessage(update, location);
                 }
             }
         }
 
         if (location == null) {
             location = new Location(ctx);
-            roSockets.put(id, new Location(ctx));
+            sockets.put(id, new Location(ctx));
         }
 
-        System.out.println(sockets.size() + " people with locations connected");
-        System.out.println(roSockets.size() + " anonymous people connected");
+        sendAllLocationsTo(location);
 
-        // send all locations to client
-        try {
-            String jsonString = mapper.writeValueAsString(response);
-            ctx.channel().write(new TextWebSocketFrame(jsonString));
-            System.out.println(jsonString);
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
+        System.out.println(sockets.size() + " people connected");
     }
 
-    private static ObjectNode getAllLocationsJson(String theirId) throws JsonProcessingException {
+    private static void sendAllLocationsTo(Location theirLoc) {
         ObjectNode json = mapper.createObjectNode();
         json.put("action", "allLocations");
         ObjectNode data = json.putObject("data");
-        data.put("id", theirId);
+        data.put("id", theirLoc.getId());
         ArrayNode locations = data.putArray("locations");
 
+        ObjectNode theirLatLng = theirLoc.getLatLngJson();
+        if (theirLatLng != null) {
+            ObjectNode yourLocation = data.putObject("yourLocation");
+            yourLocation.setAll(theirLatLng);
+        }
+
         sockets.values().forEach((location) -> {
-            ObjectNode latLng = location.getLatLngJson();
-            if (latLng != null) {
-                locations.add(latLng);
+            if (location != theirLoc) {
+                ObjectNode latLng = location.getLatLngJson();
+                if (latLng != null) {
+                    locations.add(latLng);
+                }
             }
         });
 
-        return json;
+        theirLoc.write(json);
     }
 
     public static void removeLocation(String originator) {
@@ -106,8 +91,8 @@ public class LocationsHandler {
     }
 
     public static void handleJsonEvent(ChannelHandlerContext ctx, String frameText) {
-        String originator = ctx.channel().id().asShortText();
-        System.out.println("websocket message from " + originator + " data: " + frameText);
+        String id = ctx.channel().id().asShortText();
+        System.out.println("websocket message from " + id + " data: " + frameText);
 
         JsonNode event;
         try {
@@ -118,9 +103,14 @@ public class LocationsHandler {
             return;
         }
         String action = event.get("action").toString();
+        
+        Location location = sockets.get(id);
+        if (location == null) {
+            location = new Location(ctx);
+            sockets.put(id, location);
+        }
 
         if (action.equals("\"updateLocation\"")) {
-            Location location = getLocation(ctx);
             JsonNode data = event.get("data");
             JsonNode latLng = data.get("latlng");
 
@@ -130,28 +120,14 @@ public class LocationsHandler {
 
             location.update(lat, lng, accuracy);
 
-            broadcastUpdatedLocation(location, dataToJson(originator, lat, lng, accuracy));
+            ObjectNode json = mapper.createObjectNode();
+            json.put("action", "updateLocation");
+            json.set("data", location.getLatLngJson());
+            broadcastMessage(json, location);
         } else if (action.equals("\"changeFixedLocationState\"")) {
-            Location location = getLocation(ctx);
             boolean state = event.get("data").asBoolean();
             location.fixLocation(state);
         }
-    }
-
-    private static Location getLocation(ChannelHandlerContext ctx) {
-        String id = ctx.channel().id().asShortText();
-
-        Location location = sockets.get(id);
-        if (location == null) {
-            location = roSockets.remove(id);
-            if (location == null) {
-                location = new Location(ctx);
-            } else {
-                sockets.put(id, location);
-            }
-        }
-
-        return location;
     }
 
     private static void broadcastUpdatedLocation(Location originator, ObjectNode json) {
