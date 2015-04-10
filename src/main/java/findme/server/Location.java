@@ -1,6 +1,7 @@
 package findme.server;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -31,10 +32,13 @@ public class Location {
         return id;
     }
 
-    public void update(double lat, double lng, int accuracy) {
-        this.lat = lat;
-        this.lng = lng;
-        this.accuracy = accuracy;
+    public void update(JsonNode event) {
+        JsonNode data = event.get("data");
+        JsonNode latLng = data.get("latlng");
+
+        this.lat = latLng.get(0).asDouble();
+        this.lng = latLng.get(1).asDouble();
+        this.accuracy = data.get("accuracy").asInt();
     }
 
     public void setCtx(ChannelHandlerContext ctx) {
@@ -54,16 +58,8 @@ public class Location {
         return json;
     }
 
-    public void write(ObjectNode json) {
-        String frameText;
-        try {
-            frameText = mapper.writeValueAsString(json);
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-            return;
-        }
-
-        ctx.channel().writeAndFlush(new TextWebSocketFrame(frameText));
+    public void write(String message) {
+        ctx.channel().writeAndFlush(new TextWebSocketFrame(message));
     }
 
     public void sendPing() {

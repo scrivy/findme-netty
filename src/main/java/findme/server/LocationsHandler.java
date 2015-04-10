@@ -40,12 +40,10 @@ public class LocationsHandler {
                     sockets.put(id, location);
 
                     // update other clients about changed id
-                    ObjectNode update = mapper.createObjectNode();
-                    update.put("action", "updateLocationId");
-                    ObjectNode data = update.putObject("data");
+                    ObjectNode data = mapper.createObjectNode();
                     data.put("oldId", oldId);
                     data.put("newId", id);
-                    broadcastMessage(update, location);
+                    broadcastMessage("updateLocationId", data, location);
                 }
             }
         }
@@ -82,7 +80,15 @@ public class LocationsHandler {
             }
         });
 
-        theirLoc.write(json);
+        String frameText;
+        try {
+            frameText = mapper.writeValueAsString(json);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        theirLoc.write(frameText);
     }
 
     public static void removeLocation(String originator) {
@@ -111,42 +117,21 @@ public class LocationsHandler {
         }
 
         if (action.equals("\"updateLocation\"")) {
-            JsonNode data = event.get("data");
-            JsonNode latLng = data.get("latlng");
-
-            double lat = latLng.get(0).asDouble();
-            double lng = latLng.get(1).asDouble();
-            int accuracy = data.get("accuracy").asInt();
-
-            location.update(lat, lng, accuracy);
-
-            ObjectNode json = mapper.createObjectNode();
-            json.put("action", "updateLocation");
-            json.set("data", location.getLatLngJson());
-            broadcastMessage(json, location);
+            location.update(event);
+            ObjectNode data = mapper.createObjectNode();
+            data.setAll(location.getLatLngJson());
+            broadcastMessage("updateLocation", data, location);
         } else if (action.equals("\"changeFixedLocationState\"")) {
             boolean state = event.get("data").asBoolean();
             location.fixLocation(state);
         }
     }
 
-    private static void broadcastUpdatedLocation(Location originator, ObjectNode json) {
-        // build json to send
-        ObjectNode jsonToSend = mapper.createObjectNode();
-        jsonToSend.put("action", "updateLocation");
-        jsonToSend.set("data", json);
-        String frameText;
-        try {
-            frameText = mapper.writeValueAsString(jsonToSend);
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-            return;
-        }
+    private static void broadcastMessage(String action, ObjectNode data, Location originator) {
+        ObjectNode json = mapper.createObjectNode();
+        json.put("action", action);
+        json.set("data", data);
 
-        broadcastMessage(frameText, originator);
-    }
-
-    private static void broadcastMessage(ObjectNode json, Location originator) {
         String message;
         try {
             message = mapper.writeValueAsString(json);
@@ -163,7 +148,10 @@ public class LocationsHandler {
     }
 
     public static void touchLocation(String originator) {
-        sockets.get(originator).setAckPing(true);
+        Location location = sockets.get(originator);
+        if (location != null) {
+            location.setAckPing(true);
+        }
     }
 
     public static void pingAndCleanUpWebSockets() {
@@ -171,31 +159,26 @@ public class LocationsHandler {
             @Override
             public void run() {
                 Instant now = Instant.now();
-                removeLocIfStagnant(sockets, now);
-                removeLocIfStagnant(roSockets, now);
+                sockets.forEach((id, location) -> {
+                    Instant since = location.getFixedLocationSince();
+                    if (since != null) {
+                        if (now.isAfter(since)) {
+                            System.out.println("removed fixed location");
+                            removeLocation(id);
+                        }
+                    } else {
+                        if (!location.getAckPing()) {
+                            removeLocation(id);
+                            System.out.println("removed stagnant location");
+                        } else {
+                            location.setAckPing(false);
+                            location.sendPing();
+                        }
+                    }
+                });
             }
         };
 
         scheduler.scheduleAtFixedRate(pinger, 600, 600, TimeUnit.SECONDS);
-    }
-
-    private static void removeLocIfStagnant(Map<String, Location> sockets, Instant now) {
-        sockets.forEach((id, location) -> {
-            Instant since = location.getFixedLocationSince();
-            if (since != null) {
-                if (now.isAfter(since)) {
-                    System.out.println("removed fixed location");
-                    removeLocation(id);
-                }
-            } else {
-                if (!location.getAckPing()) {
-                    removeLocation(id);
-                    System.out.println("removed stagnant location");
-                } else {
-                    location.setAckPing(false);
-                    location.sendPing();
-                }
-            }
-        });
     }
 }
