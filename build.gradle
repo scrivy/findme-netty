@@ -19,6 +19,7 @@ dependencies {
     compile 'commons-validator:commons-validator:1.4.0'
     compile 'org.slf4j:slf4j-api:1.7.12'
     compile 'org.slf4j:slf4j-log4j12:1.7.12'
+    compile 'org.javassist:javassist:3.19.0-GA'
 
     testCompile group: 'junit', name: 'junit', version: '4.11'
 }

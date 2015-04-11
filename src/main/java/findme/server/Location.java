@@ -25,7 +25,6 @@ public class Location {
 
     Location(ChannelHandlerContext ctx) {
         setCtx(ctx);
-        id = ctx.channel().id().asShortText();
     }
 
     public String getId() {
@@ -43,6 +42,7 @@ public class Location {
 
     public void setCtx(ChannelHandlerContext ctx) {
         this.ctx = ctx;
+        this.id = ctx.channel().id().asShortText();
     }
 
     public ObjectNode getLatLngJson() {

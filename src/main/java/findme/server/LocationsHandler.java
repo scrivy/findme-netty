@@ -24,7 +24,7 @@ public class LocationsHandler {
     private static final ObjectMapper mapper = new ObjectMapper();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
-    private static final Pattern cookieIdPattern = Pattern.compile("\\Aid=(\\w{8})\\z");
+    private static final Pattern cookieIdPattern = Pattern.compile("id=(\\w{8})");
 
     // TODO: seperate concerns
     public static void addCtx(ChannelHandlerContext ctx, HttpHeaders headers) {
