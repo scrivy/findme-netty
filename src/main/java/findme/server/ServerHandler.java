@@ -9,6 +9,8 @@ import io.netty.util.CharsetUtil;
 import io.netty.util.internal.SystemPropertyUtil;
 import org.apache.tika.Tika;
 import org.apache.commons.validator.routines.UrlValidator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.URL;
@@ -27,6 +29,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.*;
 
 public class ServerHandler extends SimpleChannelInboundHandler<Object> {
+    final static Logger logger = LoggerFactory.getLogger(ServerHandler.class);
 
     private final static Tika tika = new Tika();
 
@@ -115,7 +118,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
                     fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
                 }
 
-                System.out.println("downloaded " + uri);
+                logger.info("downloaded {}", uri);
             } else {
                 sendError(ctx, NOT_FOUND);
                 return;
@@ -198,7 +201,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         uri = uri.replace('/', File.separatorChar);
         
         if (!urlValidator.isValid("http://aoeuaoeu.com" + uri)) {
-            System.out.println("NOT VALID URL: " + uri);
+            logger.info("NOT VALID URL: {}",uri);
             return null;
         }
 

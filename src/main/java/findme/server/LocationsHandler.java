@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpHeaders;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -16,6 +18,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class LocationsHandler {
+    final static Logger logger = LoggerFactory.getLogger(LocationsHandler.class);
+
     private static final Map<String, Location> sockets = new ConcurrentHashMap<>();
     private static final ObjectMapper mapper = new ObjectMapper();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
@@ -34,7 +38,7 @@ public class LocationsHandler {
             if (m.find()) {
                 String oldId = m.group(1);
                 if (sockets.containsKey(oldId)) {
-                    System.out.println("still has old location");
+                    logger.debug("still has old location");
                     location = sockets.remove(oldId);
                     location.setCtx(ctx);
                     sockets.put(id, location);
@@ -55,7 +59,7 @@ public class LocationsHandler {
 
         sendAllLocationsTo(location);
 
-        System.out.println(sockets.size() + " people connected");
+        logger.info("{} people connected", sockets.size());
     }
 
     private static void sendAllLocationsTo(Location theirLoc) {
@@ -93,19 +97,18 @@ public class LocationsHandler {
 
     public static void removeLocation(String originator) {
         sockets.remove(originator);
-        System.out.println("removed location: " + originator);
+        logger.info("removed location: {}", originator);
     }
 
     public static void handleJsonEvent(ChannelHandlerContext ctx, String frameText) {
         String id = ctx.channel().id().asShortText();
-        System.out.println("websocket message from " + id + " data: " + frameText);
+        logger.info("websocket message from {} data: {}", id, frameText);
 
         JsonNode event;
         try {
             event = mapper.readTree(frameText);
         } catch (IOException e) {
-            System.err.println("Could not parse incoming websocket json");
-            e.printStackTrace();
+            logger.error("Could not parse incoming websocket json: ", e);
             return;
         }
         String action = event.get("action").toString();
@@ -163,13 +166,13 @@ public class LocationsHandler {
                     Instant since = location.getFixedLocationSince();
                     if (since != null) {
                         if (now.isAfter(since)) {
-                            System.out.println("removed fixed location");
+                            logger.info("removed fixed location");
                             removeLocation(id);
                         }
                     } else {
                         if (!location.getAckPing()) {
                             removeLocation(id);
-                            System.out.println("removed stagnant location");
+                            logger.info("removed stagnant location");
                         } else {
                             location.setAckPing(false);
                             location.sendPing();

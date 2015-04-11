@@ -8,13 +8,16 @@ import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static findme.server.LocationsHandler.pingAndCleanUpWebSockets;
 
 public final class Server {
 
-    public static void main(String[] args) throws Exception {
+    final static Logger logger = LoggerFactory.getLogger(Server.class);
 
+    public static void main(String[] args) throws Exception {
         Boolean isLinux = System.getProperty("os.name").equals("Linux");
 
         EventLoopGroup bossGroup;
@@ -46,7 +49,7 @@ public final class Server {
 
             pingAndCleanUpWebSockets();
 
-            System.err.println("Open your web browser and navigate to ://127.0.0.1:8500/");
+            logger.debug("Open your web browser and navigate to ://127.0.0.1:8500/");
 
             ch.closeFuture().sync();
         } finally {
