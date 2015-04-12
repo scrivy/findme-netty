@@ -23,7 +23,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static findme.server.LocationsHandler.*;
-import static io.netty.handler.codec.http.HttpHeaders.Names.*;
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.netty.handler.codec.http.HttpMethod.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.*;
@@ -161,9 +161,9 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         long fileLength = raf.length();
 
         HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
-        HttpHeaders.setContentLength(response, fileLength);
+        HttpHeaderUtil.setContentLength(response, fileLength);
         response.headers().set(CONTENT_TYPE, tika.detect(file.getPath()));
-        if (HttpHeaders.isKeepAlive(request)) {
+        if (HttpHeaderUtil.isKeepAlive(request)) {
             response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
         }
 
@@ -177,7 +177,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
         ChannelFuture lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
 
         // Decide whether to close the connection or not.
-        if (!HttpHeaders.isKeepAlive(request)) {
+        if (!HttpHeaderUtil.isKeepAlive(request)) {
             // Close the connection when the whole content is written out.
             lastContentFuture.addListener(ChannelFutureListener.CLOSE);
         }
@@ -281,12 +281,13 @@ public class ServerHandler extends SimpleChannelInboundHandler<Object> {
             ByteBuf buf = Unpooled.copiedBuffer(res.status().toString(), CharsetUtil.UTF_8);
             res.content().writeBytes(buf);
             buf.release();
-            HttpHeaders.setContentLength(res, res.content().readableBytes());
+            HttpHeaderUtil.setContentLength(res, res.content().readableBytes());
+
         }
 
         // Send the response and close the connection if necessary.
         ChannelFuture f = ctx.channel().writeAndFlush(res);
-        if (!HttpHeaders.isKeepAlive(req) || res.status().code() != 200) {
+        if (!HttpHeaderUtil.isKeepAlive(req) || res.status().code() != 200) {
             f.addListener(ChannelFutureListener.CLOSE);
         }
     }

@@ -33,7 +33,6 @@ public final class Server {
 
         try {
             ServerBootstrap b = new ServerBootstrap();
-            b.option(ChannelOption.SO_BACKLOG, 1024);
             if (isLinux) {
                 b.group(bossGroup, workerGroup)
                         .channel(EpollServerSocketChannel.class)
@@ -45,13 +44,8 @@ public final class Server {
                         .childHandler(new ServerInitializer());
             }
             
-            Channel ch = b.bind(8500).sync().channel();
-
+            b.bind(8500).sync().channel().closeFuture().sync();
             pingAndCleanUpWebSockets();
-
-            logger.debug("Open your web browser and navigate to ://127.0.0.1:8500/");
-
-            ch.closeFuture().sync();
         } finally {
             bossGroup.shutdownGracefully();
             workerGroup.shutdownGracefully();
