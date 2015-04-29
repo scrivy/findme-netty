@@ -43,9 +43,10 @@ public final class Server {
 //                    .handler(new LoggingHandler(LogLevel.INFO))
                         .childHandler(new ServerInitializer());
             }
-            
-            b.bind(8500).sync().channel().closeFuture().sync();
+
             pingAndCleanUpWebSockets();
+
+            b.bind(8500).sync().channel().closeFuture().sync();
         } finally {
             bossGroup.shutdownGracefully();
             workerGroup.shutdownGracefully();

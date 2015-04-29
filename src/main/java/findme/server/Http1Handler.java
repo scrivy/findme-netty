@@ -28,8 +28,8 @@ import static io.netty.handler.codec.http.HttpMethod.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.*;
 
-public class ServerHandler extends SimpleChannelInboundHandler<Object> {
-    final static Logger logger = LoggerFactory.getLogger(ServerHandler.class);
+public class Http1Handler extends SimpleChannelInboundHandler<Object> {
+    final static Logger logger = LoggerFactory.getLogger(Http1Handler.class);
 
     private final static Tika tika = new Tika();
 
