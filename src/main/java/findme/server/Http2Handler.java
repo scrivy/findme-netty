@@ -1,15 +1,24 @@
 package findme.server;
 
+import static io.netty.buffer.Unpooled.copiedBuffer;
+import static io.netty.buffer.Unpooled.unreleasableBuffer;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.AsciiString;
 import io.netty.handler.codec.http.HttpServerUpgradeHandler;
 import io.netty.handler.codec.http2.*;
+import io.netty.util.CharsetUtil;
+
+
 
 /**
  * Created by daniel on 4/29/15.
  */
 public class Http2Handler extends Http2ConnectionHandler {
+
+    private static final String UPGRADE_RESPONSE_HEADER = "Http-To-Http2-Upgrade";
+    static final ByteBuf RESPONSE_BYTES = unreleasableBuffer(copiedBuffer("Hello World", CharsetUtil.UTF_8));
 
     public Http2Handler() {
         this(new DefaultHttp2Connection(true), new Http2FrameListener());
